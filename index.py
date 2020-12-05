@@ -16,6 +16,8 @@ namespaces = {
     'a': 'http://www.etis.fskab.se/v1.0/ETISws',
 }
 userAttributes = ["id", "nom", "prenom", "login", "password","type"]
+articleFields = ["id", "user_id","title","slug","views","image","body","published","create_id","updated_at","user_id"]
+
 alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
     
 def veriferToken(token):
@@ -105,14 +107,44 @@ def getSoap():
     print(xmlResult)
     return xmlResult
 
+def getArticles():
+    mycursor = mydb.cursor()
+    mycursor.execute("SELECT * FROM posts")
+    myresult = mycursor.fetchall()
+    result = []
+    #print(myresult)
+    for user in myresult:
+        articleInfo = {}
+        index = 0
+        for attr in user:
+            articleInfo[articleFields[index]] = attr
+            index += 1
+        result.append(articleInfo)
+    return {"post" : result}
+
+def addArticle(args):
+    mycursor = mydb.cursor()
+    sql = "INSERT INTO posts (body, image, published,slug,title,user_id,views) VALUES (%s,%s,%s,%s,%s, %s,%s)"
+    val = (args["body"],args["image"],\
+        args["published"],args["slug"],args["title"],args["user_id"],args["views"])
+        #["id", "user_id","title","slug","views","image","body","published","create_id","updated_at"]
+    #print(val)
+    mycursor.execute(sql, val)
+    return mydb.commit()
 
 @app.route('/articles', methods=['GET', 'POST'])
-def Users():
+def Articles():
     if request.method == 'GET':
-        return getUsers();
+        formatArticle = request.args.get('format')
+        article_list = getArticles()
+        if (formatArticle != "XML"):
+            return jsonify(article_list)
+        else : 
+            return xmltodict.unparse({"return" : article_list})
     elif request.method == 'POST':
         req_data = request.get_json()
-        return insertUser(req_data);
+        print(req_data)
+        return addArticle(req_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
