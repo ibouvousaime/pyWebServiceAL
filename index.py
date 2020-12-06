@@ -25,6 +25,7 @@ def veriferToken(token):
     #print(args[userAttributes[2]], args[userAttributes[3]])
     mycursor.execute("SELECT * FROM tokens where token = '" + token +"'")
     myresult = mycursor.fetchall()
+    #print("token found" + myresult)
     return len(myresult) > 0
 
 def inventerToken():
@@ -34,8 +35,8 @@ def inventerToken():
     return result;
     
 def getUsers(token, args={}):
-    if not veriferToken(token):
-        return Response("operation non permise", status=401)
+   # if not veriferToken(token):
+    #    return Response("operation non permise", status=401)
     mycursor = mydb.cursor()
     mycursor.execute("SELECT * FROM utilisateur")
     myresult = mycursor.fetchall()
@@ -50,18 +51,19 @@ def getUsers(token, args={}):
         result.append(userInfo)
     return {"user" : result};
 
-def userLogin(token = "",args={}):
+def userLogin(RecToken = "",args={}):
+    tokenGenere = inventerToken()
     mycursor = mydb.cursor()
     #print(args[userAttributes[2]], args[userAttributes[3]])
-    mycursor.execute("SELECT * FROM utilisateur where login = %s and password = %s", (args[userAttributes[3]], args[userAttributes[4]]))
+    mycursor.execute("SELECT * FROM utilisateur where login = %s and password = %s and type = %s", (args[userAttributes[3]], args[userAttributes[4]], "Administrateur"))
     myresult = mycursor.fetchall()
     if len(myresult) > 0 :
         sql = "INSERT INTO tokens (token, userID) VALUES (%s,%s)"
-        vals = (inventerToken(), myresult[0][0])
+        vals = (tokenGenere, myresult[0][0])
         mycursor.execute(sql, vals) 
-        return mydb.commit()
+        return {"token" : tokenGenere}
     else : 
-        return len(myresult)
+        return {"result" : "Mauvais login ou mot de passe"}
 
 def insertUser(token,args={}):
     if not veriferToken(token):
@@ -83,20 +85,31 @@ def updateUser(token,args={}):
     #print("vals",val)
     mycursor.execute(sql, val)
     return mydb.commit()
+def deleteUser(token,args={}):
+    if not veriferToken(token):
+        return Response("operation non permise", status=401)
+    mycursor = mydb.cursor()
+    sql = "DELETE FROM utilisateur WHERE id=" + str(args[userAttributes[0]])
     
+    print("sql delete",sql)
+    mycursor.execute(sql)
+    return mydb.commit()
 soapFunctions = {
     "getUsers" : getUsers,
     "insertUser" : insertUser,
     "updateUser" : updateUser,
-    "userLogin" : userLogin
+    "userLogin" : userLogin,
+    "deleteUser" : deleteUser
 }
 @app.route('/soap', methods=['POST'])
 def getSoap():
     dom = xmltodict.parse(request.data)
     headerData = dom['soapenv:Envelope']['soapenv:Header']
-    #print(headerData)
-    token = headerData['token']
-    #print(token)
+    token = ""
+    if headerData != None:
+        token = headerData['token']
+    print("token",token)
+    
     bodyData = dom['soapenv:Envelope']['soapenv:Body']
     body = next(iter(bodyData))
     #print(bodyData[body])
@@ -134,6 +147,8 @@ def addArticle(args):
 
 @app.route('/articles', methods=['GET', 'POST'])
 def Articles():
+#    if not veriferToken(request.headers):
+ #       return Response("operation non permise", status=401)
     if request.method == 'GET':
         formatArticle = request.args.get('format')
         article_list = getArticles()
