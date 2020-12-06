@@ -35,8 +35,8 @@ def inventerToken():
     return result;
     
 def getUsers(token, args={}):
-   # if not veriferToken(token):
-    #    return Response("operation non permise", status=401)
+    if not veriferToken(token):
+        return Response("operation non permise", status=401)
     mycursor = mydb.cursor()
     mycursor.execute("SELECT * FROM utilisateur")
     myresult = mycursor.fetchall()
